@@ -24,7 +24,7 @@ class _FlatImageFolder(Dataset):
 
 def _inception_model(dims=2048, device='cpu'):
     block_idx = InceptionV3.BLOCK_INDEX_BY_DIM[dims]
-    model = InceptionV3([block_idx], resize_input=True, normalize_input=False).to(device)
+    model = InceptionV3([block_idx], resize_input=False, normalize_input=True).to(device)
     model.eval()
     return model
 
@@ -35,7 +35,6 @@ def inception_features_from_dir(img_dir, batch_size=50, device='cpu', dims=2048,
         transforms.Resize(299, interpolation=transforms.InterpolationMode.BILINEAR),
         transforms.CenterCrop(299),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),  # Add normalization
     ])
     ds = _FlatImageFolder(img_dir, transform=tfm)
     if max_samples is not None and max_samples < len(ds):

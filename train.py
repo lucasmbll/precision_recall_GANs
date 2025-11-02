@@ -36,8 +36,6 @@ if __name__ == '__main__':
         print(f"Using device: CPU")
         
 
-    
-
     # Create directories
     os.makedirs('checkpoints', exist_ok=True)
     data_path = os.getenv('DATA')

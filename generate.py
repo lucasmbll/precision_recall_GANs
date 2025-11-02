@@ -30,8 +30,8 @@ if __name__ == '__main__':
     mnist_dim = 784
 
     model = Generator(g_output_dim=mnist_dim).to(device)
-    #model = load_model(model, 'checkpoints', device)
-    model = load_model(model, 'trained_models/best', device)
+    model = load_model(model, 'checkpoints', device)
+    #model = load_model(model, 'trained_models/best', device)
     if torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
     model.eval()

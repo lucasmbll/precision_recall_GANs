@@ -122,3 +122,66 @@ def load_model(G, folder, device):
     ckpt = torch.load(ckpt_path, map_location=device)
     G.load_state_dict({k.replace('module.', ''): v for k, v in ckpt.items()})
     return G
+
+
+# ----- χ² auxiliary divergence -----
+def g_star_chi2(t):            # g*(t) = t^2/4 + t
+    return 0.25 * t * t + t
+
+def grad_g_star_chi2(t):       # ∇g*(t) = t/2 + 1  (likelihood-ratio estimate r ≈ p/p̂)
+    return 0.5 * t + 1.0
+
+# ----- PR f-divergence -----
+def f_pr(u, lam):
+    # f_λ(u) = max(λu, 1) - max(λ,1)
+    max_lam_1 = lam if lam > 1.0 else 1.0
+    return torch.maximum(lam * u, torch.ones_like(u)) - max_lam_1
+
+@torch.no_grad()
+def _set_requires_grad(module, flag: bool):
+    for p in module.parameters():
+        p.requires_grad = flag
+
+def D_train_PR(x, G, T, D_optimizer):
+    """
+    Maximize E_real[T(x)] - E_fake[g*(T(x_fake))].
+    We minimize the negative of that with the optimizer.
+    """
+    T.train()
+    D_optimizer.zero_grad()
+
+    B = x.size(0)
+    # real
+    t_real = T(x)              # (B,1)
+    # fake
+    z = torch.randn(B, 100, device=x.device)
+    x_fake = G(z).detach()     # detach G when updating T
+    t_fake = T(x_fake)
+
+    loss_dual = -(t_real.mean() - g_star_chi2(t_fake).mean())  # minimize negative
+    loss_dual.backward()
+    D_optimizer.step()
+    return float(loss_dual.item())
+
+def G_train_PR(x, G, T, G_optimizer, lam: float):
+    """
+    Minimize E_fake[f_λ(r(x_fake))], with r = ∇g*(T(x_fake)).
+    Freeze T's params, but allow gradient through T(x_fake) to flow to G.
+    """
+    T.eval()
+    _set_requires_grad(T, False)     # freeze T's weights
+
+    G_optimizer.zero_grad()
+    B = x.size(0)
+    z = torch.randn(B, 100, device=x.device)
+    x_fake = G(z)                    # (B,784)
+
+    t_fake = T(x_fake)               # gradient flows x_fake -> G, but T params frozen
+    r = grad_g_star_chi2(t_fake)     # (B,1), positive ratio estimate
+    loss_pr = f_pr(r, lam).mean()    # scalar
+
+    loss_pr.backward()
+    G_optimizer.step()
+
+    _set_requires_grad(T, True)      # unfreeze for next D step
+    return float(loss_pr.item())
