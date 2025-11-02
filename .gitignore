@@ -1,3 +1,5 @@
 data/
 samples/
 real_samples/
+results/
+trained_models/

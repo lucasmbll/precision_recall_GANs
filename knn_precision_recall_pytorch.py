@@ -217,9 +217,6 @@ def knn_precision_recall_features(
                                       col_batch_size=col_batch_size,
                                       nhood_sizes=nhood_sizes)
 
-    print(f"Evaluating k-NN precision/recall with {ref_features.shape[0]} ref and {eval_features.shape[0]} eval samples...")
-    start = time()
-
     precision_mat = ref_manifold.evaluate(eval_features)  # (N_eval, len(k))
     recall_mat    = eval_manifold.evaluate(ref_features)  # (N_ref,  len(k))
 
@@ -227,7 +224,5 @@ def knn_precision_recall_features(
         'precision': precision_mat.mean(axis=0).astype(np.float32),
         'recall':    recall_mat.mean(axis=0).astype(np.float32),
         'k':         np.array(nhood_sizes, dtype=np.int32),
-        'elapsed_s': float(time() - start),
     }
-    print(f"Done in {state['elapsed_s']:.2f}s")
     return state

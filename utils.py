@@ -32,6 +32,66 @@ def D_train(x, G, D, D_optimizer, criterion, device):
         
     return  D_loss.data.item()
 
+def D_train_soft_labels(x, G, D, D_optimizer, criterion, device):
+    #=======================Train the discriminator=======================#
+    D.zero_grad()
+
+    # train discriminator on real (with label smoothing)
+    x_real = x.to(device)
+    y_real = torch.ones(x.shape[0], 1, device=device) * 0.9  # Smooth real labels
+
+    D_output = D(x_real)
+    D_real_loss = criterion(D_output, y_real)
+    D_real_score = D_output
+
+    # train discriminator on fake (with label smoothing)
+    z = torch.randn(x.shape[0], 100, device=device)
+    x_fake = G(z)
+    y_fake = torch.ones(x.shape[0], 1, device=device) * 0.1  # Smooth fake labels (instead of 0)
+
+    D_output = D(x_fake)
+    
+    D_fake_loss = criterion(D_output, y_fake)
+    D_fake_score = D_output
+
+    # gradient backprop & optimize ONLY D's parameters
+    D_loss = D_real_loss + D_fake_loss
+    D_loss.backward()
+    D_optimizer.step()
+        
+    return  D_loss.data.item()
+
+
+def D_train_soft_labels_noise_inputs(x, G, D, D_optimizer, criterion, device, noise_std=0.1):
+    #=======================Train the discriminator=======================#
+    D.zero_grad()
+
+    # train discriminator on real (with noise)
+    x_real = x.to(device)
+    x_real = x_real + torch.randn_like(x_real) * noise_std  # Add Gaussian noise
+    y_real = torch.ones(x.shape[0], 1, device=device) * 0.9
+
+    D_output = D(x_real)
+    D_real_loss = criterion(D_output, y_real)
+    D_real_score = D_output
+
+    # train discriminator on fake (with noise)
+    z = torch.randn(x.shape[0], 100, device=device)
+    x_fake = G(z)
+    x_fake = x_fake + torch.randn_like(x_fake) * noise_std  # Add Gaussian noise
+    y_fake = torch.ones(x.shape[0], 1, device=device) * 0.1
+
+    D_output = D(x_fake)
+    
+    D_fake_loss = criterion(D_output, y_fake)
+    D_fake_score = D_output
+
+    # gradient backprop & optimize ONLY D's parameters
+    D_loss = D_real_loss + D_fake_loss
+    D_loss.backward()
+    D_optimizer.step()
+        
+    return  D_loss.data.item()
 
 def G_train(x, G, D, G_optimizer, criterion, device):
     #=======================Train the generator=======================#

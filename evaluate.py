@@ -35,6 +35,7 @@ def inception_features_from_dir(img_dir, batch_size=50, device='cpu', dims=2048,
         transforms.Resize(299, interpolation=transforms.InterpolationMode.BILINEAR),
         transforms.CenterCrop(299),
         transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),  # Add normalization
     ])
     ds = _FlatImageFolder(img_dir, transform=tfm)
     if max_samples is not None and max_samples < len(ds):
@@ -58,13 +59,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    # Ensure directories exist
-    if not os.path.exists(args.real_dir):
-        raise FileNotFoundError(f"Real images directory not found: {args.real_dir}")
-    if not os.path.exists(args.fake_dir):
-        raise FileNotFoundError(f"Fake images directory not found: {args.fake_dir}")
-
 
     print("Extracting Inception features...")
     F_real = inception_features_from_dir('real_samples', batch_size=50, device=device,
@@ -92,5 +86,5 @@ if __name__ == "__main__":
         devices=devices
     )
     k = int(state["k"][0])
-    print(f"Precision@{k}: {state['precision'][0]:.4f}")
-    print(f"Recall@{k}   : {state['recall'][0]:.4f}")
+    print(f"Precision with k = {k}: {state['precision'][0]:.4f}")
+    print(f"Recall with k = {k}   : {state['recall'][0]:.4f}")
