@@ -11,7 +11,8 @@ from utils import D_train, G_train, save_models
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train GAN on MNIST.')
     parser.add_argument("--epochs", type=int, default=100, help="Number of epochs for training.")
-    parser.add_argument("--lr", type=float, default=0.0002, help="Learning rate.")
+    parser.add_argument("--lr_D", type=float, default=0.0002, help="Learning rate.")
+    parser.add_argument("--lr_G", type=float, default=0.0002, help="Learning rate.")
     parser.add_argument("--batch_size", type=int, default=64, help="Size of mini-batches for SGD.")
     parser.add_argument("--gpus", type=int, default=-1, help="Number of GPUs to use (-1 for all available).")
     args = parser.parse_args()
@@ -82,17 +83,27 @@ if __name__ == '__main__':
 
     # Loss and optimizers
     criterion = nn.BCELoss()
-    G_optimizer = optim.Adam(G.parameters(), lr=args.lr)
-    D_optimizer = optim.Adam(D.parameters(), lr=args.lr)
-
+    G_optimizer = optim.Adam(G.parameters(), lr=4e-4, betas=(0.0, 0.9))
+    D_optimizer = optim.Adam(D.parameters(), lr=1e-4, betas=(0.0, 0.9))
 
     print('Start training:')
     n_epoch = args.epochs
     for epoch in range(1, n_epoch + 1):
+        d_sum, g_sum, n_batches = 0.0, 0.0, 0
+
         for batch_idx, (x, _) in enumerate(train_loader):
             x = x.view(-1, mnist_dim).to(device)
-            D_train(x, G, D, D_optimizer, criterion, device)
-            G_train(x, G, D, G_optimizer, criterion, device)
+            d_loss = D_train(x, G, D, D_optimizer, criterion, device)
+            g_loss  = G_train(x, G, D, G_optimizer, criterion, device)
+
+            d_sum += float(d_loss)
+            g_sum += float(g_loss)
+            n_batches += 1
+
+        # ----- clear, once-per-epoch log -----
+        d_avg = d_sum / max(1, n_batches)
+        g_avg = g_sum / max(1, n_batches)
+        print(f"[Epoch {epoch:03d}] D_loss: {d_avg:.4f} | G_loss: {g_avg:.4f}")
 
         if epoch % 10 == 0:
             save_models(G, D, 'checkpoints')
