@@ -31,13 +31,11 @@ if __name__ == '__main__':
 
     model = Generator(g_output_dim=mnist_dim).to(device)
     model = load_model(model, 'checkpoints', device)
-    #model = load_model(model, 'trained_models/best', device)
     if torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
     model.eval()
 
     print('Model loaded.')
-
 
 
     print('Start Generating')
@@ -48,6 +46,7 @@ if __name__ == '__main__':
         while n_samples<10000:
             z = torch.randn(args.batch_size, 100).to(device)
             x = model(z)
+            #x = (x + 1) / 2 uncomment if tanh is used
             x = x.reshape(args.batch_size, 28, 28)
             for k in range(x.shape[0]):
                 if n_samples<10000:

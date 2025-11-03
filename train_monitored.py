@@ -23,6 +23,7 @@ def generate_and_save_samples(G, device, num_samples=10000, save_dir='temp_sampl
         while n_samples < num_samples:
             z = torch.randn(min(512, num_samples - n_samples), 100).to(device)
             x = G(z)
+            x = (x + 1) / 2  # Rescale to [0, 1]
             x = x.reshape(-1, 28, 28)
             for k in range(x.shape[0]):
                 if n_samples < num_samples:
@@ -177,6 +178,8 @@ if __name__ == '__main__':
             x = x.view(-1, mnist_dim).to(device)
             noise_std = max(0.0, 0.1 * (1 - epoch / n_epoch))
             d_loss = D_train_soft_labels_noise_inputs(x, G, D, D_optimizer, criterion, device, noise_std=noise_std)
+            #d_loss = D_train(x, G, D, D_optimizer, criterion, device)
+            #d_loss = D_train_soft_labels(x, G, D, D_optimizer, criterion, device)
             g_loss = G_train(x, G, D, G_optimizer, criterion, device)
 
             d_sum += float(d_loss)

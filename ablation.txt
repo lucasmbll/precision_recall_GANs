@@ -6,11 +6,14 @@ Global Unchanged Params: batch_size = 128 (to avoid collapse), 100 epochs
 D_loss: 0.0000 | G_loss: 59.2713
 Collapse and unrealistic image
 
-2. Different lr D and G
-[Epoch 100] D_loss: 1.0323 | G_loss: 1.3191
-FID Score: 20.6749
-Precision with k = 3: 0.5412
-Recall with k = 3   : 0.3032
+2. New betas and seperate lr for G/D (betas=(0.5, 0.999))
+[Epoch 020] D_loss: 1.2865 | G_loss: 0.8965
+Evaluating at epoch 20...
+FID: 48.3177 | Precision: 0.1510 | Recall: 0.2739
+[Epoch 090] D_loss: 1.0724 | G_loss: 1.2164
+Evaluating at epoch 90...
+FID: 37.7641 | Precision: 0.2015 | Recall: 0.3972
+Reference: UNSUPERVISED REPRESENTATION LEARNING WITH DEEP CONVOLUTIONAL GENERATIVE ADVERSARIAL NETWORKS (Radford et. al. 2016)
 
 3. Soft labels (0.9 for real, 0.1 for fake)
 [Epoch 100] D_loss: 1.1585 | G_loss: 1.1657
@@ -26,12 +29,7 @@ Precision with k = 3: 0.5412
 Recall with k = 3   : 0.4276
 Reference: Amortised MAP Inference for Image Super-resolution (Sønderby et. al. 2016)
 
-5. New betas for G/D (betas=(0.5, 0.999))
-[Epoch 100] D_loss: 1.1950 | G_loss: 1.0634
-FID Score: 10.8748
-Precision with k = 3: 0.6543
-Recall with k = 3   : 0.5704
-Reference: UNSUPERVISED REPRESENTATION LEARNING WITH DEEP CONVOLUTIONAL GENERATIVE ADVERSARIAL NETWORKS (Radford et. al. 2016)
+
 
 
 

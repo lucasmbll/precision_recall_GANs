@@ -20,6 +20,6 @@ export DATA="/projects/m25146/data/"
 #SBATCH --error=${outdir}/%x_%j.err  # Error log
 source venv/bin/activate
 # Run your training script
-python train.py --epochs 20 --lr_G 0.0002 --lr_D 0.0004 --batch_size 64 --gpus ${n_gpu} 
+python train_pr.py --gpus ${n_gpu} 
 EOT
 
