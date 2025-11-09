@@ -9,10 +9,14 @@ import torchvision
 import matplotlib.pyplot as plt
 import numpy as np
 from model import Generator, Discriminator
-from utils import D_train, G_train, save_models, D_train_soft_labels, D_train_soft_labels_noise_inputs
+from utils import D_train_auxiliary, G_train_primal, save_models
 from evaluate import inception_features_from_dir
 from pytorch_fid.fid_score import calculate_frechet_distance
 from knn_precision_recall_pytorch import knn_precision_recall_features
+
+def denormalize(x):
+    """Convert images from [-1, 1] to [0, 1] for saving."""
+    return (x + 1) / 2
 
 def generate_and_save_samples(G, device, num_samples=10000, save_dir='temp_samples'):
     """Generate samples and save them to a directory for evaluation."""
@@ -23,7 +27,7 @@ def generate_and_save_samples(G, device, num_samples=10000, save_dir='temp_sampl
         while n_samples < num_samples:
             z = torch.randn(min(512, num_samples - n_samples), 100).to(device)
             x = G(z)
-            x = (x + 1) / 2  # Rescale to [0, 1]
+            #x = denormalize(x) # Rescale to [0, 1]
             x = x.reshape(-1, 28, 28)
             for k in range(x.shape[0]):
                 if n_samples < num_samples:
@@ -73,9 +77,6 @@ def save_fixed_samples(G, fixed_z, epoch, save_dir='progress'):
     G.eval()
     with torch.no_grad():
         samples = G(fixed_z).reshape(-1, 1, 28, 28)
-        # Normalize from [-1, 1] to [0, 1] for visualization
-        samples = (samples + 1) / 2
-        
         # Create 3x3 grid
         fig, axes = plt.subplots(3, 3, figsize=(6, 6))
         for i, ax in enumerate(axes.flat):
@@ -88,12 +89,16 @@ def save_fixed_samples(G, fixed_z, epoch, save_dir='progress'):
     G.train()
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Train GAN on MNIST with periodic evaluation.')
-    parser.add_argument("--epochs", type=int, default=100, help="Number of epochs for training.")
-    parser.add_argument("--lr_D", type=float, default=0.0001, help="Learning rate for discriminator.")
-    parser.add_argument("--lr_G", type=float, default=0.0004, help="Learning rate for generator.")
+    parser = argparse.ArgumentParser(description='Train f-GAN (2023 algorithm) on MNIST.')
+    parser.add_argument("--lambda_", type=float, default=1.0, help="PR-divergence lambda (>1 precision, <1 recall).")
+    parser.add_argument("--epochs", type=int, default=250, help="Number of epochs for training.")
+    parser.add_argument("--lr_D", type=float, default=0.0003, help="Learning rate.")
+    parser.add_argument("--lr_G", type=float, default=0.0005, help="Learning rate.")
     parser.add_argument("--batch_size", type=int, default=128, help="Size of mini-batches for SGD.")
-    parser.add_argument("--eval_every", type=int, default=10, help="Evaluate every N epochs.")
+    parser.add_argument("--eval_every", type=int, default=25, help="Evaluate every N epochs.")
+    parser.add_argument("--r1_gamma", type=float, default=5.0, help="R1 regularization strength for D.")
+    parser.add_argument("--noise_std", type=float, default=0.05, help="Standard deviation of instance noise.")
+    parser.add_argument("--use_pearson", default=True, help="Use Pearson f-divergence instead of KL.")
     parser.add_argument("--gpus", type=int, default=-1, help="Number of GPUs to use (-1 for all available).")
     args = parser.parse_args()
 
@@ -123,12 +128,9 @@ if __name__ == '__main__':
 
     # Data Pipeline
     print('Dataset loading...')
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(mean=(0.5,), std=(0.5,))
-    ])
+    transform = transforms.ToTensor() # comment if using tanh in G
+   # transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize(mean=(0.5,), std=(0.5,))]) # uncomment if using tanh in G
     train_dataset = datasets.MNIST(root=data_path, train=True, transform=transform, download=to_download)
-    
     train_loader = torch.utils.data.DataLoader(
         dataset=train_dataset,
         batch_size=args.batch_size,
@@ -137,7 +139,7 @@ if __name__ == '__main__':
         pin_memory=True
     )
     print('Dataset loaded.')
-    
+
     # Save real samples for evaluation (do this once)
     if len(os.listdir('real_samples')) == 0:
         print("Saving real samples for evaluation...")
@@ -160,27 +162,44 @@ if __name__ == '__main__':
 
     # Fixed latent vectors for visualization (9 samples for 3x3 grid)
     fixed_z = torch.randn(9, 100).to(device)
-
+    
     # Loss and optimizers
-    criterion = nn.BCELoss()
-    G_optimizer = optim.Adam(G.parameters(), lr=args.lr_G, betas=(0.5, 0.999))
-    D_optimizer = optim.Adam(D.parameters(), lr=args.lr_D, betas=(0.5, 0.999))
+    G_optimizer = optim.Adam(G.parameters(), lr=args.lr_G, betas=(0.00, 0.999))
+    D_optimizer = optim.Adam(D.parameters(), lr=args.lr_D, betas=(0.00, 0.999))
 
-    # Metrics logging
     metrics_log = []
-
     print('Start training:')
     n_epoch = args.epochs
     for epoch in range(1, n_epoch + 1):
         d_sum, g_sum, n_batches = 0.0, 0.0, 0
+        d_grad_norm_sum, g_grad_norm_sum = 0.0, 0.0  # To accumulate gradient norms
 
         for batch_idx, (x, _) in enumerate(train_loader):
             x = x.view(-1, mnist_dim).to(device)
-            noise_std = max(0.0, 0.1 * (1 - epoch / n_epoch))
-            d_loss = D_train_soft_labels_noise_inputs(x, G, D, D_optimizer, criterion, device, noise_std=noise_std)
-            #d_loss = D_train(x, G, D, D_optimizer, criterion, device)
-            #d_loss = D_train_soft_labels(x, G, D, D_optimizer, criterion, device)
-            g_loss = G_train(x, G, D, G_optimizer, criterion, device)
+            
+            # Train Discriminator
+            d_loss = D_train_auxiliary(
+                x, G, D, D_optimizer, device,
+                r1_gamma=args.r1_gamma,
+                noise_std=args.noise_std,
+                use_pearson=args.use_pearson
+            )
+            
+            # Compute discriminator gradient norm
+            d_grad_norm = torch.norm(torch.stack([p.grad.norm() for p in D.parameters() if p.grad is not None]))
+            d_grad_norm_sum += d_grad_norm.item()
+
+            # Train Generator
+            g_loss = G_train_primal(
+                G, D, G_optimizer, device, x.shape[0],
+                noise_std=args.noise_std,
+                lambda_=args.lambda_,
+                use_pearson=args.use_pearson
+            )
+            
+            # Compute generator gradient norm
+            g_grad_norm = torch.norm(torch.stack([p.grad.norm() for p in G.parameters() if p.grad is not None]))
+            g_grad_norm_sum += g_grad_norm.item()
 
             d_sum += float(d_loss)
             g_sum += float(g_loss)
@@ -188,29 +207,32 @@ if __name__ == '__main__':
 
         d_avg = d_sum / max(1, n_batches)
         g_avg = g_sum / max(1, n_batches)
-        
+        d_grad_norm_avg = d_grad_norm_sum / max(1, n_batches)
+        g_grad_norm_avg = g_grad_norm_sum / max(1, n_batches)
+
         # Save fixed samples every epoch (lightweight)
         save_fixed_samples(G, fixed_z, epoch)
         
         # Evaluate and log
         if epoch % args.eval_every == 0:
-            print(f"[Epoch {epoch:03d}] D_loss: {d_avg:.4f} | G_loss: {g_avg:.4f}")
+            print(f"[Epoch {epoch:03d}] D_loss: {d_avg:.4f} | G_loss: {g_avg:.4f} | D_grad_norm: {d_grad_norm_avg:.4f} | G_grad_norm: {g_grad_norm_avg:.4f}")
             print(f"Evaluating at epoch {epoch}...")
             fid, precision, recall = evaluate_gan(G, device)
             print(f"FID: {fid:.4f} | Precision: {precision:.4f} | Recall: {recall:.4f}")
-            
             metrics_log.append({
                 'epoch': epoch,
-                'fid': float(fid),  # Convert to native Python float
-                'precision': float(precision),  # Convert to native Python float
-                'recall': float(recall),  # Convert to native Python float
+                'fid': float(fid),
+                'precision': float(precision),
+                'recall': float(recall),
                 'd_loss': d_avg,
-                'g_loss': g_avg
+                'g_loss': g_avg,
+                'd_grad_norm': d_grad_norm_avg,
+                'g_grad_norm': g_grad_norm_avg
             })
-            
             save_models(G, D, 'checkpoints')
+            print(f"Models saved at epoch {epoch}.")
         else:
-            print(f"[Epoch {epoch:03d}] D_loss: {d_avg:.4f} | G_loss: {g_avg:.4f}")
+            print(f"[Epoch {epoch:03d}] D_loss: {d_avg:.4f} | G_loss: {g_avg:.4f} | D_grad_norm: {d_grad_norm_avg:.4f} | G_grad_norm: {g_grad_norm_avg:.4f}")
 
     # Save metrics to file
     import json

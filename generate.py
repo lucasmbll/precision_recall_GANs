@@ -13,8 +13,6 @@ if __name__ == '__main__':
                       help="The batch size to use for training.")
     args = parser.parse_args()
 
-
-
     if torch.cuda.is_available():
         device = torch.device("cuda")
         print(f"Using device: CUDA")
@@ -37,7 +35,6 @@ if __name__ == '__main__':
 
     print('Model loaded.')
 
-
     print('Start Generating')
     os.makedirs('samples', exist_ok=True)
 
@@ -46,7 +43,7 @@ if __name__ == '__main__':
         while n_samples<10000:
             z = torch.randn(args.batch_size, 100).to(device)
             x = model(z)
-            #x = (x + 1) / 2 uncomment if tanh is used
+            #x = (x + 1) / 2 #uncomment if tanh is used
             x = x.reshape(args.batch_size, 28, 28)
             for k in range(x.shape[0]):
                 if n_samples<10000:

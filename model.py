@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.utils import spectral_norm as SN
 
 
 class Generator(nn.Module):
@@ -18,16 +19,16 @@ class Generator(nn.Module):
         x = F.leaky_relu(self.fc3(x), 0.2)
         x = self.fc4(x)
         #x = torch.tanh(x)
-        x = torch.sigmoid(x)
+        x = torch.sigmoid(x) #switch to sigmoid for [0,1] output for better training
         return x
 
 class Discriminator(nn.Module):
     def __init__(self, d_input_dim):
         super(Discriminator, self).__init__()
-        self.fc1 = nn.Linear(d_input_dim, 1024)
-        self.fc2 = nn.Linear(self.fc1.out_features, self.fc1.out_features//2)
-        self.fc3 = nn.Linear(self.fc2.out_features, self.fc2.out_features//2)
-        self.fc4 = nn.Linear(self.fc3.out_features, 1)
+        self.fc1 = SN(nn.Linear(d_input_dim, 1024))
+        self.fc2 = SN(nn.Linear(self.fc1.out_features, self.fc1.out_features//2))
+        self.fc3 = SN(nn.Linear(self.fc2.out_features, self.fc2.out_features//2))
+        self.fc4 = SN(nn.Linear(self.fc3.out_features, 1))
 
     # forward method
     def forward(self, x):
