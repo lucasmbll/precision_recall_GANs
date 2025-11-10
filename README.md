@@ -1,82 +1,94 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/SQRTf064)
-# DataLabAssignement2
+# DataLabAssignment2: Precision-Recall GAN (PRGAN)
 
-## Using GPUs with MesoNet
+This repository implements the Precision-Recall GAN (PRGAN) approach as described in the paper [Precision and Recall for Generative Models](https://arxiv.org/abs/1904.06991). The implementation includes training a GAN with the PR-divergence, generating fake samples, and evaluating the model using k-NN Precision and Recall metrics.
 
-### 1. Access MesoNet
-To use the provided GPUs, you must first:
-- Create a MesoNet account and request access to the project.
-- Once accepted, add your SSH key to MesoNet for secure access. Follow the instructions [here](https://www.mesonet.fr/documentation/user-documentation/code_form/juliet/connexion).
+## Approach Overview
+The PRGAN approach uses a tunable parameter `lambda` to balance precision and recall during training. The generator and discriminator are trained using a modified loss function based on the PR-divergence. The implementation also includes a reimplementation of k-NN Precision and Recall metrics for evaluation.
 
-### 2. Set Up Your Environment
-On Juliet (MesoNet's cluster), you need to:
+---
 
-1. Create a virtual environment for Python:
-   ```bash
-   python -m venv venv
-   ```
+## How to Use This Repository
 
-2. Activate the environment:
-   ```bash
-   source venv/bin/activate
-   ```
+### 1. Download the MNIST Dataset
+To download the MNIST dataset and save real samples for evaluation:
+1. Run the `train.py` or `train_monitored.py` script. The dataset will be automatically downloaded into the `data` folder.
+2. The first time you run the script, 10,000 real samples will be saved in the `real_samples` folder for evaluation.
 
-3. Install the required dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+---
 
-### 3. Run Training or Generation
-- Use the provided shell scripts (`scripts/train.sh` or `scripts/generate.sh`) to launch jobs.
-- These scripts will automatically activate the virtual environment (`venv`).
-- If you don't use Juliet cluster, please provide a data_path argument for the training scripts. Otherwise, everything should be automated.
+### 2. Train the GAN with PRGAN
+You can train the GAN using the PRGAN approach with a selected `lambda` value.
 
-### 4. Hardware Compatibility
-The code is compatible with:
-- **NVIDIA GPUs (CUDA)**
-- **Apple Silicon (MPS, for M1/M2/M3/M4 chips)**
-- **CPU-only mode** (not recommended for performance)
-
-We recommend using CUDA (for NVIDIA GPUs) or MPS (for Apple Silicon).
-
-### 5. Slurm Resources
-- If you need help with Slurm (MesoNet's job scheduler), there will be a Slurm lecture on 29/10/2025 or refer to the official documentation: [Slurm Documentation](https://slurm.schedmd.com/documentation.html).
-
-### 6. Example Commands
-To submit a job to MesoNet:
+#### **Option 1: Basic Training**
+Use the `train.py` script for basic training:
 ```bash
-# Make the script executable
-chmod +x scripts/train.sh
-
-# Submit the job to Slurm
-scripts/train.sh
+python train.py --lambda_ <lambda_value>
 ```
-## train.py
-This script performs adversarial training for a GAN. Before running it, ensure the `DATA` variable in `scripts/train.sh` points to your dataset directory. If left unchanged, the script will create a default `data` folder in the repository root. If you use Juliet, no changes are required—the default path is already configured. You can adjust the learning rate, number of epochs, and batch size directly in `scripts/train.sh`.
+- Replace `<lambda_value>` with the desired value of `lambda` (e.g., `2.0` or `10.0`).
+- The script will save the trained generator and discriminator models in the `checkpoints` folder.
 
-## generate.py
-Use the file *generate.py* to generate 10000 samples of MNIST in the folder samples. You can launch this script on juliet with `scripts/generate.sh`
-
-Example:
-  > python3 generate.py --bacth_size 64
-
-or 
-
+#### **Option 2: Monitored Training**
+Use the `train_monitored.py` script for training with additional monitoring:
 ```bash
-# Make the script executable
-chmod +x scripts/generate.sh
+python train_monitored.py --lambda_ <lambda_value>
+```
+- This script will:
+  - Save generated samples at each epoch in the `progress` folder.
+  - Evaluate the model regularly (e.g., every 25 epochs) and log metrics such as FID, Precision, and Recall.
 
-# Submit the job to Slurm
-scripts/generate.sh
+---
+
+### 3. Generate Fake Samples
+After training, you can generate fake samples using the checkpointed generator model:
+```bash
+python generate.py --batch_size <batch_size>
+```
+- Replace `<batch_size>` with the desired batch size (default: `4096`).
+- The script will generate 10,000 fake samples and save them in the `samples` folder.
+
+---
+
+### 4. Evaluate the Model
+Evaluate the trained model using the reimplementation of k-NN Precision and Recall metrics:
+```bash
+python evaluate.py --k <k_value>
+```
+- Replace `<k_value>` with the desired neighborhood size for k-NN (default: `3`).
+- The script will compute:
+  - **FID (Fréchet Inception Distance)** between real and fake samples.
+  - **Precision and Recall** using the k-NN approach (based on [Kynkäänniemi et al., NeurIPS 2019](https://arxiv.org/abs/1904.06991)).
+
+---
+
+## Example Workflow
+1. **Train the GAN**:
+   ```bash
+   python train_monitored.py --lambda_ 2.0 --epochs 250
+   ```
+2. **Generate Fake Samples**:
+   ```bash
+   python generate.py
+   ```
+3. **Evaluate the Model**:
+   ```bash
+   python evaluate.py --k 3
+   ```
+
+---
+
+## Requirements
+To set up the environment, use the following commands:
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
-## requirements.txt
-Among the good pratice of datascience, we encourage you to use conda or virtualenv to create python environment. 
-To test your code on our platform, you are required to update the *requirements.txt*, with the different librairies you might use. 
-When your code will be test, we will execute: 
-  > pip install -r requirements.txt
+---
 
+## References
+- **PRGAN Paper**: [Precision and Recall for Generative Models](https://arxiv.org/abs/1904.06991)
+- **k-NN Precision and Recall**: [Kynkäänniemi et al., NeurIPS 2019](https://arxiv.org/abs/1904.06991)
+- **FID Metric**: [Heusel et al., NeurIPS 2017](https://arxiv.org/abs/1706.08500)
 
-## Checkpoints
-Push the minimal amount of models in the folder *checkpoints*.
-
+---
