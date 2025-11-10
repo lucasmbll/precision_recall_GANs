@@ -23,6 +23,12 @@ def f_lambda(r, lambda_):
 
     return term1 - term2
 
+def f_lambda_soft(r, lam, tau=1e-2):
+    # smooth max with softplus
+    smax1 = torch.log(torch.exp(lam*r/tau) + torch.exp(1/tau)) * tau
+    smax2 = torch.log(torch.exp(lam/tau) + torch.exp(1/tau)) * tau
+    return smax1 - smax2
+
 # utils_pr.py (patchs clés)
 def D_train_auxiliary(x_real, G, D, D_optimizer, device, r1_gamma=None, noise_std=None, use_pearson=False):
     D.zero_grad(set_to_none=True)
@@ -93,7 +99,8 @@ def G_train_primal(G, D, G_optimizer, device, batch_size, noise_std=None, lambda
         r = delta_g_star_KL(torch.clamp(T_fake, -10.0, 10.0))
 
     #G_loss = f_lambda(r, lambda_).mean()
-    G_loss = torch.relu(1.0 - lambda_ * r).mean() # Surrogate loss for training, to avoid flat regions of the original f_lambda
+    #G_loss = torch.relu(1.0 - lambda_ * r).mean() # Surrogate loss for training, to avoid flat regions of the original f_lambda
+    G_loss = f_lambda_soft(r, lambda_).mean()  # Smooth surrogate loss
 
     G_loss.backward()
     G_optimizer.step()

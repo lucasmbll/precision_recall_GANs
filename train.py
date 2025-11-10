@@ -12,12 +12,12 @@ from utils import D_train_auxiliary, G_train_primal, save_models
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train f-GAN (2023 algorithm) on MNIST.')
-    parser.add_argument("--lambda_", type=float, default=1.0, help="PR-divergence lambda (>1 precision, <1 recall).")
+    parser.add_argument("--lambda_", type=float, default=0.1, help="PR-divergence lambda (>1 precision, <1 recall).")
     parser.add_argument("--epochs", type=int, default=250, help="Number of epochs for training.")
     parser.add_argument("--lr_D", type=float, default=0.0003, help="Learning rate.")
     parser.add_argument("--lr_G", type=float, default=0.0005, help="Learning rate.")
     parser.add_argument("--batch_size", type=int, default=128, help="Size of mini-batches for SGD.")
-    parser.add_argument("--r1_gamma", type=float, default=5.0, help="R1 regularization gamma.")
+    parser.add_argument("--r1_gamma", type=float, default=5.0, help="R1 regularization strength for D.")
     parser.add_argument("--noise_std", type=float, default=0.05, help="Standard deviation of instance noise.")
     parser.add_argument("--use_pearson", default=True, help="Use Pearson f-divergence instead of KL.")
     parser.add_argument("--gpus", type=int, default=-1, help="Number of GPUs to use (-1 for all available).")

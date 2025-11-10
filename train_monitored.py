@@ -90,7 +90,7 @@ def save_fixed_samples(G, fixed_z, epoch, save_dir='progress'):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train f-GAN (2023 algorithm) on MNIST.')
-    parser.add_argument("--lambda_", type=float, default=1.0, help="PR-divergence lambda (>1 precision, <1 recall).")
+    parser.add_argument("--lambda_", type=float, default=0.1, help="PR-divergence lambda (>1 precision, <1 recall).")
     parser.add_argument("--epochs", type=int, default=250, help="Number of epochs for training.")
     parser.add_argument("--lr_D", type=float, default=0.0003, help="Learning rate.")
     parser.add_argument("--lr_G", type=float, default=0.0005, help="Learning rate.")
