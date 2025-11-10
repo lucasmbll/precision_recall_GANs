@@ -1,6 +1,6 @@
 # DataLabAssignment2: Precision-Recall GAN (PRGAN)
 
-This repository implements the Precision-Recall GAN (PRGAN) approach as described in the paper [Precision and Recall for Generative Models]([https://arxiv.org/abs/1904.06991](https://proceedings.neurips.cc/paper_files/paper/2023/file/67159f1c0cab15dd34c76a5dd830a389-Paper-Conference.pdf). The implementation includes training a GAN with the PR-divergence, generating fake samples, and evaluating the model using k-NN Precision and Recall metrics.
+This repository implements the Precision-Recall GAN (PRGAN) approach as described in the paper [Precision and Recall for Generative Models](https://proceedings.neurips.cc/paper_files/paper/2023/file/67159f1c0cab15dd34c76a5dd830a389-Paper-Conference.pdf). The implementation includes training a GAN with the PR-divergence, generating fake samples, and evaluating the model using k-NN Precision and Recall metrics.
 
 ## Approach Overview
 The PRGAN approach uses a tunable parameter `lambda` to balance precision and recall during training. The generator and discriminator are trained using a modified loss function based on the PR-divergence. The implementation also includes a reimplementation of k-NN Precision and Recall metrics for evaluation.
