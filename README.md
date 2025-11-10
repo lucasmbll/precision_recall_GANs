@@ -87,7 +87,7 @@ pip install -r requirements.txt
 ---
 
 ## References
-- **PRGAN Paper**: [Precision and Recall for Generative Models](https://arxiv.org/abs/1904.06991)
+- **PRGAN Paper**: [Precision and Recall for Generative Models](https://proceedings.neurips.cc/paper_files/paper/2023/file/67159f1c0cab15dd34c76a5dd830a389-Paper-Conference.pdf)
 - **k-NN Precision and Recall**: [Kynkäänniemi et al., NeurIPS 2019](https://arxiv.org/abs/1904.06991)
 - **FID Metric**: [Heusel et al., NeurIPS 2017](https://arxiv.org/abs/1706.08500)
 
